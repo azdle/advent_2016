@@ -1,6 +1,8 @@
 extern crate regex;
 
-#[derive(Debug)]
+use std::hash::{Hash, Hasher};
+
+#[derive(Debug, Clone)]
 enum Direction {
 	North,
 	East,
@@ -8,7 +10,7 @@ enum Direction {
 	West
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Position {
 	north: i64,
 	west: i64,
@@ -56,10 +58,26 @@ impl Position {
 	}
 }
 
+impl PartialEq for Position {
+    fn eq(&self, other: &Position) -> bool {
+        self.north == other.north && self.west == other.west
+    }
+}
+
+impl Eq for Position {}
+
+impl Hash for Position {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.north.hash(state);
+        self.west.hash(state);
+    }
+}
+
 fn main() {
 	use std::io::prelude::*;
 	use std::fs::File;
 	use regex::Regex;
+	use std::collections::HashSet;
 
 	let mut f = File::open("data.txt").unwrap();
 	let mut input = String::new();
@@ -68,6 +86,9 @@ fn main() {
 	let re = Regex::new(r"([LR])(\d+)").unwrap();
 
 	let mut pos = Position::new();
+
+	let mut visited = HashSet::new();
+	visited.insert(pos.clone());
 
 	for cap in re.captures_iter(&input) {
 		let turn = cap.at(1).unwrap();
@@ -79,13 +100,19 @@ fn main() {
 			_ => panic!("Bad Input"),
 		}
 
-		pos.go(blocks);
+		for _ in 0..blocks {
+			pos.go(1);
 
-		println!("Direction: {} Blocks: {}", turn, blocks);
+			if visited.contains(&pos) {
+				println!("Found Repeat at {:?}, {} blocks away.", pos, pos.distance());
+				return;
+			} else {
+				visited.insert(pos.clone());
+			}
+		}
+
+		println!("Direction: {}\tBlocks: {},\tPosition: {:?}", turn, blocks, pos);
 	}
 
-	println!("{:?}", pos);
-
-	println!("Santa is {} blocks away.", pos.distance());
-
+	println!("Path Never Overlapped, ended at {:?}, {} blocks away.", pos, pos.distance());
 }
